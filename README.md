@@ -2,13 +2,16 @@
 A telegraf exec script to collect detailed interface statistics
 on a NetScout probe and feed the data to telegraf for export to
 a TSDB.
-<br>
+
 Updates at https://github.com/gregvolk/nsifstat
+
+
 This program is meant to be exexcuted on a NetScout probe. 
 It requires access to "/opt/NetScout/rtm/tools/printstats -h" 
 and parses the output from that program. The following text is 
 an example of printstats -h output:
-<br>
+
+
 ```
 ---------------------------- Interface 3 ----------------------------
 First packet time: 1507661100:0
@@ -44,7 +47,9 @@ nsprobe.if4_bytes 39605644618118 1573849075
 ...
 ```
 
-Use the following telegraf.conf input config to instruct telegraf
+
+### telegraf example conifg:
+After you have nsifstat.pl working, use the following telegraf.conf input config to instruct telegraf
 to call nsifstat.pl.
 
 ```
