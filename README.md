@@ -1,4 +1,4 @@
-#nsifstat.pl
+# nsifstat.pl
 A telegraf exec script to collect detailed interface statistics
 on a NetScout probe and feed the data to telegraf for export to
 a TSDB.
@@ -25,14 +25,12 @@ Flush fail count: 0
 First packet time: 1507661100:0
 Last packet time: 1508068063:488463430
 Capture start sec: 0
-.
-.
-.
+...
 ```
 
 When you execute nsifstat.pl the output should look something like this:
 ```
-`./nsifstat.pl 
+./nsifstat.pl 
 nsprobe.if3_pkts 497172896685 1573849075
 nsprobe.if3_bytes 331037765942706 1573849075
 nsprobe.if3_pktdrop_err 0 1573849075
@@ -43,9 +41,7 @@ nsprobe.if3_flushfail_err 0 1573849075
 nsprobe.if3_retention 181675 1573849075
 nsprobe.if4_pkts 63190639147 1573849075
 nsprobe.if4_bytes 39605644618118 1573849075
-.
-.
-.
+...
 ```
 
 Use the following telegraf.conf input config to instruct telegraf
@@ -60,6 +56,6 @@ to call nsifstat.pl.
 
 
 
-###debug output:
+### debug output:
 If you are having trouble making this work, try setting ```$debug = 1;``` in
 the script to see where things are failing.
