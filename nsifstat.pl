@@ -1,30 +1,22 @@
 #!/usr/bin/perl -w
 #
 #
-# nsifstat.pl - a telegraf exec script to collect detailed interface statistics
-#               on a NetScout probe and feed the data to telegraf for export to
-#               a TSDB
+# nsifstat.pl - a telegraf exec script to collect detailed interface statistics 
+#		on a NetScout probe and feed the data to telegraf for export to 
+#		a TSDB
 #
 #
-# This program executes "/opt/NetScout/rtm/tools/printstats -h" and parses
-# the output. The following text is an example of printstats -h output:
+# This program executes "/opt/NetScout/rtm/tools/printstats" and parses 
+# the output. The following text is an example of printstats output:
 #
-#---------------------------- Interface 3 ----------------------------
-#First packet time: 1507661100:0
-#Last packet time: 1508068066:835502020
-#Capture start sec: 0
-#Packet count: 433596980436
-#Bytes cnt: 262440163742084
-#Packet drop count: 0
-#Byte drop count: 0
-#Packet reject count: 0
-#Zero frame count: 0
-#Flush fail count: 0
-#---------------------------- Interface 4 ----------------------------
-#First packet time: 1507661100:0
-#Last packet time: 1508068063:488463430
-#Capture start sec: 0
-#
+#-------------Interface 3 ---------------
+#StartTime:  1578331500
+#EndTime:    1578583740.0
+#LastBlock:  2640616
+#-------------Interface 4 ---------------
+#StartTime:  1578331500
+#EndTime:    1578583740.0
+#LastBlock:  2640608#
 #
 #
 # When you execute nsifstat.pl the output should look something like this:
@@ -56,12 +48,16 @@ use strict;
 # debug output?
 my $debug = 0;
 
-my $PRINTSTATS="/opt/NetScout/rtm/tools/printstats -h";
+my $PRINTSTATS="/opt/NetScout/rtm/tools/printstats";
+my $XDRSIZESTATS="/usr/bin/du -s /xdr/*";
+
+
+
 my $HN = `/bin/hostname`;
 chomp $HN;
 
 my (%ifname,%pkts,%bytes,%pktdrop,%bytedrop,%pktreject,%zeroframe,%flushfail,
-    %firstpkt,%lastpkt);
+    %firstpkt,%lastpkt,%xdrsize);
 my ($line,$ifnum,@a,$time,$retention);
 
 if($debug) { print STDERR localtime().": executing $PRINTSTATS on $HN\n"; }
@@ -76,17 +72,17 @@ foreach $line (@input) {
   if($debug) { print STDERR localtime().": working on $line\n"; }
   if($line =~ /-------/) {
     @a = split /\s+/,$line;
-    $ifnum = $a[2];
+    $ifnum = $a[1];
     $ifname{$ifnum} = $ifnum;
     if($debug) { print STDERR localtime().": interface $ifname{$ifnum} -> $ifnum\n"; }
   }
 
-  if($line =~ /First packet time/) {
+  if($line =~ /StartTime/) {
     @a = split /:/,$line;
     $firstpkt{$ifnum} = $a[1];
     if($debug) { print STDERR localtime().": firstpkt for $ifnum -> $firstpkt{$ifnum}\n"; }
   }
-  if($line =~ /Last packet time/) {
+  if($line =~ /EndTime/) {
     @a = split /:/,$line;
     $lastpkt{$ifnum} = $a[1];
     if($debug) { print STDERR localtime().": lastpkt for $ifnum -> $lastpkt{$ifnum}\n"; }
@@ -128,12 +124,29 @@ foreach $line (@input) {
   }
 }
 
+if($debug) { print STDERR localtime().": executing $XDRSIZESTATS on $HN\n"; }
+@input = `$XDRSIZESTATS`;
+
+if($debug) { print STDERR localtime().": back from XDRSIZESTATS call with $#input lines\n"; }
+
+foreach $line (@input) {
+  chomp $line;
+  if($debug) { print STDERR localtime().": working on $line\n"; }
+  @a = split /_if/,$line;
+  $ifnum = $a[1];
+  if($debug) { print STDERR localtime().": XDR stat interface = $ifnum\n"; }
+  @a = split /\s+/,$line;
+  $xdrsize{$ifnum} = $a[0];
+  if($debug) { print STDERR localtime().": storing xdrsize{$ifnum} -> $a[0]\n"; }
+}
+
+
 $time = time();
 
 if($debug) { print STDERR localtime().": using timestamp = $time\n"; }
-if($debug){
-  print STDERR localtime().": #ifnum,pkts,bytes,pktdrop,bytedrop,pktreject,zeroframe,flushfail,retention\n";
-}
+#if($debug){
+#  print STDERR localtime().": #ifnum,pkts,bytes,pktdrop,bytedrop,pktreject,zeroframe,flushfail,retention\n";
+#}
 
 
 foreach $ifnum (sort keys %ifname) {
@@ -141,17 +154,18 @@ foreach $ifnum (sort keys %ifname) {
   if($retention < 0) { $retention = 0; }
   if($debug) { print STDERR localtime().": calculated retention = $retention\n"; }
 
-  if($debug) {
-    print STDERR localtime().": $ifnum,$pkts{$ifnum},$bytes{$ifnum},$pktdrop{$ifnum},$bytedrop{$ifnum},$pktreject{$ifnum},$zeroframe{$ifnum},$flushfail{$ifnum},$retention\n";
-  }
-  print "nsprobe.if$ifnum\_pkts $pkts{$ifnum} $time\n";
-  print "nsprobe.if$ifnum\_bytes $bytes{$ifnum} $time\n";
-  print "nsprobe.if$ifnum\_pktdrop_err $pktdrop{$ifnum} $time\n";
-  print "nsprobe.if$ifnum\_bytedrop_err $bytedrop{$ifnum} $time\n";
-  print "nsprobe.if$ifnum\_pktreject_err $pktreject{$ifnum} $time\n";
-  print "nsprobe.if$ifnum\_zeroframe_err $zeroframe{$ifnum} $time\n";
-  print "nsprobe.if$ifnum\_flushfail_err $flushfail{$ifnum} $time\n";
+#  if($debug) {
+#    print STDERR localtime().": $ifnum,$pkts{$ifnum},$bytes{$ifnum},$pktdrop{$ifnum},$bytedrop{$ifnum},$pktreject{$ifnum},$zeroframe{$ifnum},$flushfail{$ifnum},$retention\n";
+#  }
+  #print "nsprobe.if$ifnum\_pkts $pkts{$ifnum} $time\n";
+  #print "nsprobe.if$ifnum\_bytes $bytes{$ifnum} $time\n";
+  #print "nsprobe.if$ifnum\_pktdrop_err $pktdrop{$ifnum} $time\n";
+  #print "nsprobe.if$ifnum\_bytedrop_err $bytedrop{$ifnum} $time\n";
+  #print "nsprobe.if$ifnum\_pktreject_err $pktreject{$ifnum} $time\n";
+  #print "nsprobe.if$ifnum\_zeroframe_err $zeroframe{$ifnum} $time\n";
+  #print "nsprobe.if$ifnum\_flushfail_err $flushfail{$ifnum} $time\n";
   print "nsprobe.if$ifnum\_retention $retention $time\n";
-
+  print "nsprobe.if$ifnum\_xdrsize $xdrsize{$ifnum} $time\n";
 }
+
 
